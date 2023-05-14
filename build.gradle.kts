@@ -1,174 +1,113 @@
 plugins {
-    java
+    alias(libs.plugins.architectury.plugin)
+    alias(libs.plugins.architectury.loom) apply false
 
-    alias(libs.plugins.loom)
-    alias(libs.plugins.loom.quiltflower)
-
-    alias(libs.plugins.minotaur)
-    alias(libs.plugins.cursegradle)
+    alias(libs.plugins.minotaur) apply false
+    alias(libs.plugins.cursegradle) apply false
     alias(libs.plugins.github.release)
-    alias(libs.plugins.machete)
-    `maven-publish`
+    alias(libs.plugins.grgit)
 }
 
-group = "dev.isxander"
-version = "1.2.1"
-
-repositories {
-    mavenCentral()
-    maven("https://maven.isxander.dev/releases")
-    maven("https://maven.isxander.dev/snapshots")
-    maven("https://maven.terraformersmc.com/releases")
-    maven("https://jitpack.io")
+architectury {
+    minecraft = libs.versions.minecraft.get()
 }
 
-val minecraftVersion = libs.versions.minecraft.get()
+version = "1.3.0+1.19.4"
 
-dependencies {
-    minecraft(libs.minecraft)
-    mappings("net.fabricmc:yarn:$minecraftVersion+build.${libs.versions.yarn.get()}:v2")
-    modImplementation(libs.fabric.loader)
+val changelogText = rootProject.file("changelogs/${project.version}.md").takeIf { it.exists() }?.readText() ?: "No changelog provided."
+val snapshotVer = "${grgit.branch.current().name.replace('/', '.')}-SNAPSHOT"
 
-    modImplementation(libs.fabric.api)
-    modImplementation(libs.yacl)
-    modImplementation(libs.mod.menu)
+allprojects {
+    apply(plugin = "java")
+    apply(plugin = "maven-publish")
+    apply(plugin = "architectury-plugin")
 
-    libs.mixin.extras.let {
-        implementation(it)
-        annotationProcessor(it)
-        include(it)
+    version = rootProject.version
+    group = "dev.isxander"
+
+    if (System.getenv().containsKey("GITHUB_ACTIONS")) {
+        version = "$version+$snapshotVer"
     }
-}
 
-loom {
-    accessWidenerPath.set(file("src/main/resources/adaptivetooltips.accesswidener"))
-}
+    configure<BasePluginExtension> {
+        archivesName.set("adaptive-tooltips-${project.name}")
+    }
 
-tasks {
-    processResources {
-        val modId: String by project
-        val modName: String by project
-        val modDescription: String by project
-        val githubProject: String by project
+    ext["changelogText"] = changelogText
 
-        inputs.property("id", modId)
-        inputs.property("group", project.group)
-        inputs.property("name", modName)
-        inputs.property("description", modDescription)
-        inputs.property("version", project.version)
-        inputs.property("github", githubProject)
+    repositories {
+        mavenCentral()
+        maven("https://maven.terraformersmc.com/releases")
+        maven("https://maven.isxander.dev/releases")
+        maven("https://maven.isxander.dev/snapshots")
+        maven("https://maven.quiltmc.org/repository/release")
+        maven("https://api.modrinth.com/maven") {
+            name = "Modrinth"
+            content {
+                includeGroup("maven.modrinth")
+            }
+        }
+        maven("https://jitpack.io")
+    }
 
-        filesMatching(listOf("fabric.mod.json", "quilt.mod.json")) {
-            expand(
-                "id" to modId,
-                "group" to project.group,
-                "name" to modName,
-                "description" to modDescription,
-                "version" to project.version,
-                "github" to githubProject,
-            )
+    configure<PublishingExtension>{
+        repositories {
+            val username = "XANDER_MAVEN_USER".let { System.getenv(it) ?: findProperty(it) }?.toString()
+            val password = "XANDER_MAVEN_PASS".let { System.getenv(it) ?: findProperty(it) }?.toString()
+            if (username != null && password != null) {
+                maven(url = "https://maven.isxander.dev/releases") {
+                    name = "Releases"
+                    credentials {
+                        this.username = username
+                        this.password = password
+                    }
+                }
+                maven(url = "https://maven.isxander.dev/snapshots") {
+                    name = "Snapshots"
+                    credentials {
+                        this.username = username
+                        this.password = password
+                    }
+                }
+            } else {
+                println("Xander Maven credentials not satisfied.")
+            }
         }
     }
-    
-    remapJar {
-        archiveClassifier.set("fabric-$minecraftVersion")   
-    }
-    
-    remapSourcesJar {
-        archiveClassifier.set("fabric-$minecraftVersion-sources")   
-    }
 
-    register("releaseMod") {
-        group = "mod"
-
-        dependsOn("modrinth")
-        dependsOn("modrinthSyncBody")
-        dependsOn("curseforge")
-        dependsOn("publish")
-        dependsOn("githubRelease")
-    }
-}
-
-java {
-    withSourcesJar()   
-}
-
-var changelogText = file("changelogs/${project.version}.md").takeIf { it.exists() }?.readText() ?: "No changelog provided."
-file("changelogs/header.md").takeIf { it.exists() }?.readText()?.let { changelogText = it + "\n\n" + changelogText }
-
-val modrinthId: String by project
-if (modrinthId.isNotEmpty()) {
-    modrinth {
-        token.set(findProperty("modrinth.token")?.toString())
-        projectId.set(modrinthId)
-        versionNumber.set("${project.version}")
-        versionType.set("release")
-        uploadFile.set(tasks["remapJar"])
-        gameVersions.set(listOf("1.19.4"))
-        loaders.set(listOf("fabric", "quilt"))
-        changelog.set(changelogText)
-        syncBodyFrom.set(file("README.md").readText())
-    }
-}
-
-val curseforgeId: String by project
-if (hasProperty("curseforge.token") && curseforgeId.isNotEmpty()) {
-    curseforge {
-        apiKey = findProperty("curseforge.token")
-        project(closureOf<me.hypherionmc.cursegradle.CurseProject> {
-            mainArtifact(tasks["remapJar"], closureOf<me.hypherionmc.cursegradle.CurseArtifact> {
-                displayName = "${project.version}"
-            })
-
-            id = curseforgeId
-            releaseType = "release"
-            addGameVersion("1.19.4")
-            addGameVersion("Fabric")
-            addGameVersion("Java 17")
-
-            changelog = changelogText
-            changelogType = "markdown"
-        })
-
-        options(closureOf<me.hypherionmc.cursegradle.Options> {
-            forgeGradleIntegration = false
-        })
+    tasks.withType<JavaCompile> {
+        options.encoding = "UTF-8"
+        options.release.set(17)
     }
 }
 
 githubRelease {
-    token(findProperty("github.token")?.toString())
+    token(findProperty("GITHUB_TOKEN")?.toString())
 
-    val githubProject: String by project
+    val githubProject: String by rootProject
     val split = githubProject.split("/")
     owner(split[0])
     repo(split[1])
     tagName("${project.version}")
-    targetCommitish("1.19.4")
+    targetCommitish(grgit.branch.current().name)
     body(changelogText)
-    releaseAssets(tasks["remapJar"].outputs.files)
+    releaseAssets(
+        { project(":fabric").tasks["remapJar"].outputs.files },
+        { project(":fabric").tasks["remapSourcesJar"].outputs.files },
+        { project(":forge").tasks["remapJar"].outputs.files },
+        { project(":forge").tasks["remapSourcesJar"].outputs.files },
+    )
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("mod") {
-            groupId = "dev.isxander"
-            artifactId = "adaptive-tooltips"
+tasks.register("releaseMod") {
+    group = "mod"
 
-            from(components["java"])
-        }
-    }
+    dependsOn("githubRelease")
+}
 
-    repositories {
-        if (hasProperty("xander-repo.username") && hasProperty("xander-repo.password")) {
-            maven(url = "https://maven.isxander.dev/releases") {
-                credentials {
-                    username = property("xander-repo.username")?.toString()
-                    password = property("xander-repo.password")?.toString()
-                }
-            }
-        } else {
-            println("Xander Maven credentials not satisfied.")   
-        }
-    }
+tasks.register("buildAll") {
+    group = "mod"
+
+    dependsOn(project(":fabric").tasks["build"])
+    dependsOn(project(":forge").tasks["build"])
 }

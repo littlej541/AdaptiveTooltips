@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "${description}",
+  "authors": [
+    "isXander"
+  ],
+  "contact": {
+    "homepage": "https://isxander.dev",
+    "issues": "https://github.com/${github}/issues",
+    "sources": "https://github.com/${github}"
+  },
+  "icon": "icon.png",
+  "license": "LGPL-3.0-or-later",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.isxander.adaptivetooltips.AdaptiveTooltips::onInitializeClient"
+    ],
+    "modmenu": [
+      "dev.isxander.adaptivetooltips.config.modmenu.ModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    "adaptive-tooltips.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.19",
+    "minecraft": "~1.19.4",
+    "java": ">=17",
+    "fabric-resource-loader-v0": "*",
+    "yet-another-config-lib": "^2.5.1+1.19.4"
+  },
+  "breaks": {
+    "tooltipfix": "*"
+  }
+}
