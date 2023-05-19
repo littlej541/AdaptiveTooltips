@@ -27,10 +27,12 @@ public class TooltipWrapper {
             case REMAINING_WIDTH -> {
                 // can't rely on tooltip x as wrapping is calculated *before* tooltip positioners
                 // any we can't use tooltip positioners early without height, which you get by wrapping! infinite loop!
-                if (tooltipPositioner instanceof DefaultTooltipPositioner) {
-                    allowedMaxWidth = screen.width - x - 15;
 
-                    if (x + 12 + maxWidth > screen.width)
+                if (tooltipPositioner instanceof DefaultTooltipPositioner || tooltipPositioner instanceof MenuTooltipPositioner) {
+                    int menuTooltipScreenWidthAdjustment = tooltipPositioner instanceof MenuTooltipPositioner ? -5 : 0;
+                    allowedMaxWidth = screen.width - x - 15 + menuTooltipScreenWidthAdjustment;
+
+                    if (x + 12 + maxWidth > screen.width + menuTooltipScreenWidthAdjustment)
                         allowedMaxWidth = Math.max(allowedMaxWidth, x - 20);
                 } else {
                     allowedMaxWidth = Integer.MAX_VALUE; // max_value essentially bypasses wrapping using the check below
