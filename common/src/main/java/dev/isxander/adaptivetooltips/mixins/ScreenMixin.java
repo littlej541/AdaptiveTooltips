@@ -17,6 +17,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
+import net.minecraft.client.gui.screens.inventory.tooltip.MenuTooltipPositioner;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
@@ -96,7 +97,7 @@ public class ScreenMixin {
         // push before returning so we don't need to repeat the check on pop
         matrices.pushPose(); // injection is before matrices.pushPose()
 
-        if (!(clientTooltipPositioner instanceof DefaultTooltipPositioner) && AdaptiveTooltipConfig.INSTANCE.getConfig().onlyRepositionHoverTooltips) {
+        if (!(clientTooltipPositioner instanceof DefaultTooltipPositioner || clientTooltipPositioner instanceof MenuTooltipPositioner) && AdaptiveTooltipConfig.INSTANCE.getConfig().onlyRepositionHoverTooltips) {
             return currentPosition;
         }
 
