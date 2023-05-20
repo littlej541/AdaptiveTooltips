@@ -3,6 +3,7 @@ package dev.isxander.adaptivetooltips.helpers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.isxander.adaptivetooltips.config.AdaptiveTooltipConfig;
 import dev.isxander.adaptivetooltips.config.ScrollDirection;
+import dev.isxander.adaptivetooltips.config.WrapTextBehaviour;
 import dev.isxander.adaptivetooltips.mixins.ClientBundleTooltipAccessor;
 import dev.isxander.adaptivetooltips.mixins.ClientTextTooltipAccessor;
 import dev.isxander.adaptivetooltips.utils.TextUtil;
@@ -12,30 +13,48 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ScrollTracker {
-    private static int targetVerticalScroll = 0;
-    private static int targetHorizontalScroll = 0;
+    private static int verticalScrollAccumulator = 0;
+    private static int horizontalScrollAccumulator = 0;
+
+    private static float targetVerticalScroll = 0f;
+    private static float targetHorizontalScroll = 0f;
 
     private static float currentVerticalScroll = 0f;
     private static float currentHorizontalScroll = 0f;
 
+    private static float targetVerticalScrollNormalized = 0f;
+    private static float targetHorizontalScrollNormalized = 0f;
+
+    private static float currentVerticalScrollNormalized = 0f;
+    private static float currentHorizontalScrollNormalized = 0f;
+
+    private static Range verticalRange = null;
+    private static Range horizontalRange = null;
+    private static int offsetX = 0;
+    private static int offsetY = 0;
     private static List<ClientTooltipComponent> trackedComponents = null;
+    private static String trackedComponentsString = "";
+
+
     public static boolean renderedThisFrame = false;
 
     public static void addVerticalScroll(int amt) {
-        if (AdaptiveTooltipConfig.INSTANCE.getConfig().scrollDirection == ScrollDirection.NATURAL)
+        if (AdaptiveTooltipConfig.INSTANCE.getConfig().scrollDirection == ScrollDirection.REVERSE)
             amt = -amt;
-        targetVerticalScroll += amt * AdaptiveTooltipConfig.INSTANCE.getConfig().verticalScrollSensitivity;
+        verticalScrollAccumulator += amt * AdaptiveTooltipConfig.INSTANCE.getConfig().verticalScrollSensitivity;
     }
 
     public static void addHorizontalScroll(int amt) {
-        if (AdaptiveTooltipConfig.INSTANCE.getConfig().scrollDirection == ScrollDirection.NATURAL)
+        if (AdaptiveTooltipConfig.INSTANCE.getConfig().scrollDirection == ScrollDirection.REVERSE)
             amt = -amt;
-        targetHorizontalScroll += amt * AdaptiveTooltipConfig.INSTANCE.getConfig().horizontalScrollSensitivity;
+        horizontalScrollAccumulator += amt * AdaptiveTooltipConfig.INSTANCE.getConfig().horizontalScrollSensitivity;
     }
 
     public static float getVerticalScroll() {
@@ -46,29 +65,49 @@ public class ScrollTracker {
         return currentHorizontalScroll;
     }
 
-    public static void scroll(PoseStack matrices, List<ClientTooltipComponent> components, int x, int y, int width, int height, int screenWidth, int screenHeight) {
-        tick(components, x, y, width, height, screenWidth, screenHeight, Minecraft.getInstance().getDeltaFrameTime());
-
-        // have to use a translate rather than moving the tooltip's x and y because int precision is too jittery
-        matrices.translate(ScrollTracker.getHorizontalScroll(), ScrollTracker.getVerticalScroll(), 0);
+    public static float getVerticalScrollNormalized() {
+        return currentVerticalScrollNormalized;
     }
 
-    private static void tick(List<ClientTooltipComponent> components, int x, int y, int width, int height, int screenWidth, int screenHeight, float tickDelta) {
+    public static float getHorizontalScrollNormalized() {
+        return currentHorizontalScrollNormalized;
+    }
+
+    public static void scroll(PoseStack matrices, List<ClientTooltipComponent> components, TooltipData.Tooltip tooltip, TooltipData.Viewport viewport) {
+        calculateScrollData(tooltip, viewport);
+
+        tick(components, Minecraft.getInstance().getDeltaFrameTime());
+
+        // have to use a translate rather than moving the tooltip's x and y because int precision is too jittery
+        matrices.translate(-currentHorizontalScroll, -currentVerticalScroll, 0f);
+    }
+
+    private static void tick(List<ClientTooltipComponent> components, float tickDelta) {
         renderedThisFrame = true;
 
         resetIfNeeded(components);
 
-        // prevent scrolling if not needed, required for clamping to work without breaking every tooltip
-        if (height < screenHeight)
-            targetVerticalScroll = 0;
-        if (width < screenWidth)
-            targetHorizontalScroll = 0;
+        // attempt to keep scroll in same position for remaining width tooltips
+        targetVerticalScroll = lerpWithRange(targetVerticalScrollNormalized, verticalRange);
+        targetHorizontalScroll = lerpWithRange(targetHorizontalScrollNormalized, horizontalRange);
+        currentVerticalScroll = lerpWithRange(currentVerticalScrollNormalized, verticalRange);
+        currentHorizontalScroll = lerpWithRange(currentHorizontalScrollNormalized, horizontalRange);
 
         // prevents scrolling too far up/down
-        targetVerticalScroll = Mth.clamp(targetVerticalScroll, Math.min(screenHeight - (y + height) - 4, 0), Math.max(-y + 4, 0));
-        targetHorizontalScroll = Mth.clamp(targetHorizontalScroll, Math.min(screenWidth - (x + width) - 4, 0), Math.max(-x + 4, 0));
+        targetVerticalScroll = clampWithRange(targetVerticalScroll + verticalScrollAccumulator, verticalRange);
+        targetHorizontalScroll = clampWithRange(targetHorizontalScroll + horizontalScrollAccumulator, horizontalRange);
+
+        verticalScrollAccumulator = horizontalScrollAccumulator = 0;
+
+        // save normalized scroll position for attempts at keeping scroll in the same place when moved
+        targetVerticalScrollNormalized = inverseLerpWithRange(targetVerticalScroll, verticalRange);
+        targetHorizontalScrollNormalized = inverseLerpWithRange(targetHorizontalScroll, horizontalRange);
 
         tickAnimation(tickDelta);
+
+        // same as above but we do this after animation since values are altered by lerp there
+        currentVerticalScrollNormalized = inverseLerpWithRange(currentVerticalScroll, verticalRange);
+        currentHorizontalScrollNormalized = inverseLerpWithRange(currentHorizontalScroll, horizontalRange);
     }
 
     private static void tickAnimation(float tickDelta) {
@@ -83,22 +122,69 @@ public class ScrollTracker {
 
     private static void resetIfNeeded(List<ClientTooltipComponent> components) {
         // if not the same component as last frame, reset the scrolling.
-        if (!isEqual(components, trackedComponents)) {
-            reset();
+        if (isEqual(components)) {
+            return;
         }
 
+        reset();
+
         trackedComponents = components;
+
+        // save tooltip string with no whitespace characters for matching against
+        // basically just for remaining with configuration
+        if (components.stream().anyMatch(component -> !(component instanceof ClientTextTooltip))) {
+            trackedComponentsString = "";
+        } else {
+            trackedComponentsString = ((List<ClientTextTooltip>)(Object)components)
+                    .stream()
+                    .map(component -> ((ClientTextTooltipAccessor) component).getText())
+                    .map(TextUtil::toText)
+                    .map(component -> StringUtils.deleteWhitespace(component.getString()))
+                    .collect(Collectors.joining());
+        }
     }
 
     public static void reset() {
-        targetVerticalScroll = targetHorizontalScroll = 0;
-        // need to also reset the animation as it is funky upon next render
-        currentVerticalScroll = currentHorizontalScroll = 0;
+        targetVerticalScroll = targetHorizontalScroll = 0f;
+        targetVerticalScrollNormalized = targetHorizontalScrollNormalized = 0f;
+        verticalScrollAccumulator = horizontalScrollAccumulator = 0;
+        currentVerticalScroll = currentHorizontalScroll = 0f;
+        currentVerticalScrollNormalized = currentHorizontalScrollNormalized = 0f;
+
+        // set proper scroll position on reset so we the tooltip doesn't "woosh" when it opens
+        if (verticalRange != null && horizontalRange != null) {
+            targetVerticalScrollNormalized = currentVerticalScrollNormalized = inverseLerpWithRange(offsetY, verticalRange.normalized());
+            targetHorizontalScrollNormalized = currentHorizontalScrollNormalized = inverseLerpWithRange(offsetX, horizontalRange.normalized());
+            targetVerticalScroll = currentVerticalScroll = clampWithRange(lerpWithRange(currentVerticalScrollNormalized, verticalRange), verticalRange);
+            targetHorizontalScroll = currentHorizontalScroll = clampWithRange(lerpWithRange(currentHorizontalScrollNormalized, horizontalRange), horizontalRange);
+        }
     }
 
-    private static boolean isEqual(List<ClientTooltipComponent> l1, List<ClientTooltipComponent> l2) {
+    // test for equality regardless of wrapping
+    private static boolean wrappedEqual(List<? extends ClientTooltipComponent> l1) {
+        if (l1 == null || trackedComponents == null || l1.stream().anyMatch(component -> !(component instanceof ClientTextTooltip))) {
+            return false;
+        }
+
+        String wholeString = ((List<ClientTextTooltip>)l1)
+                .stream()
+                .map(component -> ((ClientTextTooltipAccessor) component).getText())
+                .map(TextUtil::toText)
+                .map(component -> StringUtils.deleteWhitespace(component.getString()))
+                .collect(Collectors.joining());
+
+        return wholeString.equals(trackedComponentsString);
+    }
+
+    private static boolean isEqual(List<ClientTooltipComponent> l1) {
+        List<ClientTooltipComponent> l2 = trackedComponents;
+
         if (l1 == null || l2 == null)
             return false;
+
+        if (AdaptiveTooltipConfig.INSTANCE.getConfig().wrapText == WrapTextBehaviour.REMAINING_WIDTH && wrappedEqual(l1)) {
+            return true;
+        }
 
         Iterator<ClientTooltipComponent> iter1 = l1.iterator();
         Iterator<ClientTooltipComponent> iter2 = l2.iterator();
@@ -141,5 +227,41 @@ public class ScrollTracker {
         }
 
         return !(iter1.hasNext() || iter2.hasNext());
+    }
+
+    private static float clampWithRange(float current, Range range) {
+        return Mth.clamp(current, range.min, range.max);
+    }
+
+    private static float lerpWithRange(float delta, Range range) {
+        return Mth.lerp(delta, range.min, range.max);
+    }
+
+    private static float inverseLerpWithRange(float current, Range range) {
+        return range.min - range.max != 0f ? Mth.inverseLerp(current, range.min, range.max) : 0f;
+    }
+
+    private static void calculateScrollData(TooltipData.Tooltip tooltip, TooltipData.Viewport viewport) {
+        verticalRange = new Range(
+                Math.min(-viewport.y + tooltip.y, 0),
+                Math.max(tooltip.height - viewport.y + tooltip.y - viewport.height, 0)
+        );
+        horizontalRange = new Range(
+                Math.min(-viewport.x + tooltip.x, 0),
+                Math.max(tooltip.width - viewport.x + tooltip.x - viewport.width, 0)
+        );
+
+        offsetY = viewport.y - tooltip.y;
+        offsetX = viewport.x - tooltip.x;
+    }
+
+    private record Range(float min, float max) {
+        public float range() {
+            return this.max - this.min;
+        }
+
+        public Range normalized() {
+            return new Range(0f, this.range());
+        }
     }
 }

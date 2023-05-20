@@ -54,6 +54,9 @@ public class AdaptiveTooltipConfig {
     @ConfigEntry public ScrollDirection scrollDirection = Util.getPlatform() == Util.OS.OSX ? ScrollDirection.NATURAL : ScrollDirection.REVERSE;
     @ConfigEntry public int verticalScrollSensitivity = 10;
     @ConfigEntry public int horizontalScrollSensitivity = 10;
+    @ConfigEntry public boolean scissorTooltips = false;
+    @ConfigEntry public boolean scissorIsSize = true;
+    @ConfigEntry public int clampHeight = 100;
     @ConfigEntry public float tooltipTransparency = 1f;
     @ConfigEntry public boolean removeFirstLinePadding = true;
 
@@ -273,6 +276,37 @@ public class AdaptiveTooltipConfig {
             var styleGroup = OptionGroup.createBuilder()
                     .name(Component.translatable("adaptivetooltips.group.style.title"))
                     .tooltip(Component.translatable("adaptivetooltips.group.style.desc"));
+            var scissorIsSizeOpt = Option.createBuilder(boolean.class)
+                    .name(Component.translatable("adaptivetooltips.opt.scissor_is_size.title"))
+                    .tooltip(Component.translatable("adaptivetooltips.opt.scissor_is_size.desc"))
+                    .binding(
+                            defaults.scissorIsSize,
+                            () -> config.scissorIsSize,
+                            val -> config.scissorIsSize = val
+                    )
+                    .controller(TickBoxController::new)
+                    .build();
+            var scissorTooltipsOpt = Option.createBuilder(boolean.class)
+                    .name(Component.translatable("adaptivetooltips.opt.scissor_tooltips.title"))
+                    .tooltip(Component.translatable("adaptivetooltips.opt.scissor_tooltips.desc"))
+                    .binding(
+                            defaults.scissorTooltips,
+                            () -> config.scissorTooltips,
+                            val -> config.scissorTooltips = val
+                    )
+                    .controller(TickBoxController::new)
+                    .listener((opt, val) -> scissorIsSizeOpt.setAvailable(val))
+                    .build();
+            var clampHeightOpt = Option.createBuilder(int.class)
+                    .name(Component.translatable("adaptivetooltips.opt.clamp_height.title"))
+                    .tooltip(Component.translatable("adaptivetooltips.opt.clamp_height.desc"))
+                    .binding(
+                            defaults.clampHeight,
+                            () -> config.clampHeight,
+                            val -> config.clampHeight = val
+                    )
+                    .controller(opt -> new IntegerSliderController(opt, 10, 100, 1, val -> Component.literal(String.format("%,d%%", val))))
+                    .build();
             var tooltipTransparencyOpt = Option.createBuilder(float.class)
                     .name(Component.translatable("adaptivetooltips.opt.tooltip_transparency.title"))
                     .tooltip(Component.translatable("adaptivetooltips.opt.tooltip_transparency.desc"))
@@ -293,6 +327,9 @@ public class AdaptiveTooltipConfig {
                     )
                     .controller(TickBoxController::new)
                     .build();
+            styleGroup.option(scissorTooltipsOpt);
+            styleGroup.option(scissorIsSizeOpt);
+            styleGroup.option(clampHeightOpt);
             styleGroup.option(tooltipTransparencyOpt);
             styleGroup.option(removeFirstLinePaddingOpt);
             categoryBuilder.group(styleGroup.build());

@@ -1,9 +1,7 @@
 package dev.isxander.adaptivetooltips.helpers.positioner;
 
-import org.joml.Vector2ic;
-
-import java.util.Optional;
+import dev.isxander.adaptivetooltips.helpers.TooltipData;
 
 public interface TooltipPositionModule {
-    Optional<Vector2ic> repositionTooltip(int x, int y, int width, int height, int mouseX, int mouseY, int screenWidth, int screenHeight);
+    TooltipData repositionTooltip(TooltipData tooltipData, int mouseX, int mouseY, int screenWidth, int screenHeight);
 }
