@@ -193,12 +193,17 @@ public class ScreenMixin {
 
         this.scissorActive = true;
 
-        float vPercent = ScrollTracker.getVerticalScrollNormalized();
         float hPercent = ScrollTracker.getHorizontalScrollNormalized();
-        float x0 = edgeOffsetViewport.x + hPercent * (edgeOffsetViewport.width - 16);
-        float y0 = edgeOffsetViewport.y + vPercent * (edgeOffsetViewport.height - 16);
-        float x1 = x0 + 16;
-        float y1 = y0 + 16;
+        float vPercent = ScrollTracker.getVerticalScrollNormalized();
+        int hScrollbarHalfLength = edgeOffsetViewport.width / 10;
+        int vScrollbarHalfLength = edgeOffsetViewport.height / 10;
+
+        float x0 = edgeOffsetViewport.x + hPercent * (edgeOffsetViewport.width - hScrollbarHalfLength);
+        float y0 = edgeOffsetViewport.y + vPercent * (edgeOffsetViewport.height - vScrollbarHalfLength);
+        float x1 = x0 + hScrollbarHalfLength;
+        float y1 = y0 + vScrollbarHalfLength;
+
+        int scrollbarColor = AdaptiveTooltipConfig.INSTANCE.getConfig().scissorScrollbarColor.getRGB();
 
         Tesselator tesselator = Tesselator.getInstance();
         BufferBuilder bufferBuilder = tesselator.getBuilder();
@@ -206,22 +211,20 @@ public class ScreenMixin {
         bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
         if (tooltipData.tooltip().width > edgeOffsetViewport.width) {
-            bufferBuilder.vertex(this.preScrollTransform, x0, edgeOffsetViewport.y + edgeOffsetViewport.height + 1, 400).color(1f, 0f, 0f, 1f).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, x0, edgeOffsetViewport.y + edgeOffsetViewport.height + 3, 400).color(1f, 0f, 0f, 1f).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, x1, edgeOffsetViewport.y + edgeOffsetViewport.height + 3, 400).color(1f, 0f, 0f, 1f).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, x1, edgeOffsetViewport.y + edgeOffsetViewport.height + 1, 400).color(1f, 0f, 0f, 1f).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, x0, edgeOffsetViewport.y + edgeOffsetViewport.height, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, x0, edgeOffsetViewport.y + edgeOffsetViewport.height + 3, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, x1, edgeOffsetViewport.y + edgeOffsetViewport.height + 3, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, x1, edgeOffsetViewport.y + edgeOffsetViewport.height, 400).color(scrollbarColor).endVertex();
         }
 
         if (tooltipData.tooltip().height > edgeOffsetViewport.height) {
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 1, y0, 400).color(1f, 0f, 0f, 1f).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 1, y1, 400).color(1f, 0f, 0f, 1f).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 3, y1, 400).color(1f, 0f, 0f, 1f).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 3, y0, 400).color(1f, 0f, 0f, 1f).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width, y0, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width, y1, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 3, y1, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 3, y0, 400).color(scrollbarColor).endVertex();
         }
 
         RenderSystem.enableDepthTest();
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
         BufferUploader.drawWithShader(bufferBuilder.end());
 
         GuiComponent.enableScissor(edgeOffsetViewport.x, edgeOffsetViewport.y, edgeOffsetViewport.x + edgeOffsetViewport.width, edgeOffsetViewport.y + edgeOffsetViewport.height);

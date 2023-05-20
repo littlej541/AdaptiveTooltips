@@ -12,6 +12,7 @@ import dev.isxander.yacl.api.OptionGroup;
 import dev.isxander.yacl.api.YetAnotherConfigLib;
 import dev.isxander.yacl.config.ConfigEntry;
 import dev.isxander.yacl.config.GsonConfigInstance;
+import dev.isxander.yacl.gui.controllers.ColorController;
 import dev.isxander.yacl.gui.controllers.LabelController;
 import dev.isxander.yacl.gui.controllers.TickBoxController;
 import dev.isxander.yacl.gui.controllers.cycling.EnumController;
@@ -57,6 +58,7 @@ public class AdaptiveTooltipConfig {
     @ConfigEntry public boolean scissorTooltips = false;
     @ConfigEntry public boolean scissorIsSize = true;
     @ConfigEntry public int clampHeight = 100;
+    @ConfigEntry public Color scissorScrollbarColor = new Color(0xFFFFFFFF);
     @ConfigEntry public float tooltipTransparency = 1f;
     @ConfigEntry public boolean removeFirstLinePadding = true;
 
@@ -307,6 +309,16 @@ public class AdaptiveTooltipConfig {
                     )
                     .controller(opt -> new IntegerSliderController(opt, 10, 100, 1, val -> Component.literal(String.format("%,d%%", val))))
                     .build();
+            var scissorScrollbarColorOpt = Option.createBuilder(Color.class)
+                    .name(Component.translatable("adaptivetooltips.opt.scissor_scrollbar_color.title"))
+                    .tooltip(Component.translatable("adaptivetooltips.opt.scissor_scrollbar_color.desc"))
+                    .binding(
+                            defaults.scissorScrollbarColor,
+                            () -> config.scissorScrollbarColor,
+                            val -> config.scissorScrollbarColor = val
+                    )
+                    .controller(ColorController::new)
+                    .build();
             var tooltipTransparencyOpt = Option.createBuilder(float.class)
                     .name(Component.translatable("adaptivetooltips.opt.tooltip_transparency.title"))
                     .tooltip(Component.translatable("adaptivetooltips.opt.tooltip_transparency.desc"))
@@ -330,6 +342,7 @@ public class AdaptiveTooltipConfig {
             styleGroup.option(scissorTooltipsOpt);
             styleGroup.option(scissorIsSizeOpt);
             styleGroup.option(clampHeightOpt);
+            styleGroup.option(scissorScrollbarColorOpt);
             styleGroup.option(tooltipTransparencyOpt);
             styleGroup.option(removeFirstLinePaddingOpt);
             categoryBuilder.group(styleGroup.build());

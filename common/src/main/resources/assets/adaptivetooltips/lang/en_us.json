@@ -42,6 +42,8 @@
   "adaptivetooltips.opt.scissor_is_size.desc": "Treat the scissored size as the true size.",
   "adaptivetooltips.opt.clamp_height.title": "Clamp Scissor Height",
   "adaptivetooltips.opt.clamp_height.desc": "Clamp height of a scissored tooltip as a percentage of screen height.",
+  "adaptivetooltips.opt.scissor_scrollbar_color.title": "Scissor Scrollbar Color",
+  "adaptivetooltips.opt.scissor_scrollbar_color.desc": "Color for scissored tooltip scrollbars.",
   "adaptivetooltips.opt.tooltip_transparency.title": "Tooltip Transparency",
   "adaptivetooltips.opt.tooltip_transparency.desc": "Modifies the transparency of tooltips by a percentage.",
   "adaptivetooltips.opt.remove_first_line_padding.title": "Remove First Line Padding",
