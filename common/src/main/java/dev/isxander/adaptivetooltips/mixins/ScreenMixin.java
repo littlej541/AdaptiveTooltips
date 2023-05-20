@@ -19,8 +19,8 @@ import dev.isxander.adaptivetooltips.helpers.positioner.BestCornerPositionModule
 import dev.isxander.adaptivetooltips.helpers.positioner.PrioritizeTooltipTopPositionModule;
 import dev.isxander.adaptivetooltips.helpers.positioner.TooltipPositionModule;
 import dev.isxander.adaptivetooltips.utils.TextUtil;
-import dev.isxander.yacl.gui.utils.GuiUtils;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
@@ -224,13 +224,13 @@ public class ScreenMixin {
         RenderSystem.defaultBlendFunc();
         BufferUploader.drawWithShader(bufferBuilder.end());
 
-        GuiUtils.enableScissor(edgeOffsetViewport.x, edgeOffsetViewport.y, edgeOffsetViewport.width, edgeOffsetViewport.height);
+        GuiComponent.enableScissor(edgeOffsetViewport.x, edgeOffsetViewport.y, edgeOffsetViewport.x + edgeOffsetViewport.width, edgeOffsetViewport.y + edgeOffsetViewport.height);
     }
 
     @Inject(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;popPose()V", ordinal = 0))
     private void closeCustomMatrices(PoseStack matrices, List<ClientTooltipComponent> components, int x, int y, ClientTooltipPositioner positioner, CallbackInfo ci) {
         if (this.scissorActive) {
-            RenderSystem.disableScissor();
+            GuiComponent.disableScissor();
         }
 
         matrices.popPose();
