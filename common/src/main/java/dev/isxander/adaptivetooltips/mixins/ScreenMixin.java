@@ -195,8 +195,8 @@ public class ScreenMixin {
 
         float hPercent = ScrollTracker.getHorizontalScrollNormalized();
         float vPercent = ScrollTracker.getVerticalScrollNormalized();
-        int hScrollbarHalfLength = edgeOffsetViewport.width / 10;
-        int vScrollbarHalfLength = edgeOffsetViewport.height / 10;
+        int hScrollbarHalfLength = Math.max(edgeOffsetViewport.width / 10, 10);
+        int vScrollbarHalfLength = Math.max(edgeOffsetViewport.height / 10, 10);
 
         float x0 = edgeOffsetViewport.x + hPercent * (edgeOffsetViewport.width - hScrollbarHalfLength);
         float y0 = edgeOffsetViewport.y + vPercent * (edgeOffsetViewport.height - vScrollbarHalfLength);
