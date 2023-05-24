@@ -39,6 +39,17 @@ public class ScreenMixin {
         return TooltipWrapper.wrapTooltipLines((Screen) (Object) this, font, instance.toList(), x, DefaultTooltipPositioner.INSTANCE).stream();
     }
 
+    @ModifyArgs(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;renderTooltipBackground(Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil$BlitPainter;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/BufferBuilder;IIIII)V"))
+    private void clampTooltip(Args args) {
+        if (AdaptiveTooltipConfig.INSTANCE.getConfig().scissorTooltips) {
+            args.set(1, SharedMixinData.preScrollTransform);
+            args.set(3, SharedMixinData.edgeOffsetViewport.x);
+            args.set(4, SharedMixinData.edgeOffsetViewport.y);
+            args.set(5, SharedMixinData.edgeOffsetViewport.width);
+            args.set(6, SharedMixinData.edgeOffsetViewport.height);
+        }
+    }
+
     @ModifyArgs(method = "method_47943", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiComponent;fillGradient(Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/BufferBuilder;IIIIIII)V"))
     private static void changeTooltipColorAlpha(Args args) {
         args.set(7, GuiUtil.scaleAlpha(args.<Integer>get(7)));

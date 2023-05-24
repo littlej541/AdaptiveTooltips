@@ -54,11 +54,7 @@ public class ScreenMixin {
 
     @Shadow protected Font font;
 
-    @Unique private TooltipData tooltipData;
-    @Unique private TooltipData.Viewport edgeOffsetViewport;
-
     @Unique private boolean scissorActive;
-    @Unique private Matrix4f preScrollTransform;
 
     @Redirect(method = "renderTooltip(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/network/chat/Component;II)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;renderTooltip(Lcom/mojang/blaze3d/vertex/PoseStack;Ljava/util/List;II)V"))
     private void wrapText(Screen instance, PoseStack matrices, List<? extends FormattedCharSequence> lines, int x, int y, PoseStack dontuse, Component text) {
@@ -89,9 +85,9 @@ public class ScreenMixin {
 
     @WrapOperation(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;positionTooltip(Lnet/minecraft/client/gui/screens/Screen;IIII)Lorg/joml/Vector2ic;"))
     private Vector2ic moveTooltip(ClientTooltipPositioner clientTooltipPositioner, Screen screen, int x, int y, int width, int height, Operation<Vector2ic> operation, PoseStack matrices, List<ClientTooltipComponent> components, int mouseX, int mouseY) {
-        this.tooltipData = TooltipData.create(0, 0, width, height, this.width, this.height);
-        Vector2ic currentPosition = operation.call(clientTooltipPositioner, screen, x, y, this.tooltipData.width(), this.tooltipData.height());
-        this.tooltipData = this.tooltipData.withPosition(currentPosition.x(), currentPosition.y(), this.width, this.height);
+        SharedMixinData.tooltipData = TooltipData.create(0, 0, width, height, this.width, this.height);
+        Vector2ic currentPosition = operation.call(clientTooltipPositioner, screen, x, y, SharedMixinData.tooltipData.width(), SharedMixinData.tooltipData.height());
+        SharedMixinData.tooltipData = SharedMixinData.tooltipData.withPosition(currentPosition.x(), currentPosition.y(), this.width, this.height);
 
         // push before returning so we don't need to repeat the check on pop
         matrices.pushPose(); // injection is before matrices.pushPose()
@@ -102,67 +98,17 @@ public class ScreenMixin {
                     new BedrockCenteringPositionModule(),
                     new BestCornerPositionModule()
             )) {
-                this.tooltipData = tooltipPositionModule.repositionTooltip(this.tooltipData, x, y, this.width, this.height);
+                SharedMixinData.tooltipData = tooltipPositionModule.repositionTooltip(SharedMixinData.tooltipData, x, y, this.width, this.height);
             }
         }
-        
-        this.preScrollTransform = new Matrix4f(matrices.last().pose());
 
-        this.edgeOffsetViewport = this.tooltipData.viewport().withOffset(4, this.width, this.height);
+        SharedMixinData.preScrollTransform = new Matrix4f(matrices.last().pose());
 
-        ScrollTracker.scroll(matrices, components, this.tooltipData.tooltip(), this.edgeOffsetViewport);
+        SharedMixinData.edgeOffsetViewport = SharedMixinData.tooltipData.viewport().withOffset(4, this.width, this.height);
 
-        return new Vector2i(tooltipData.x(), tooltipData.y());
-    }
+        ScrollTracker.scroll(matrices, components, SharedMixinData.tooltipData.tooltip(), SharedMixinData.edgeOffsetViewport);
 
-    /**
-     * Using {@link ModifyArgs} here causes a crash in Forge version, so it was split into multiple {@link ModifyArg}
-     * mixins. There is probably a better way to do this, but this seems "easiest." There is a patched version of
-     * {@link ModifyArgs} and {@link Args} in the Forge project provided by Architectury that may be the intended
-     * solution, but that would require some refactoring the scope of which is unknown.
-     */
-    @ModifyArg(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;renderTooltipBackground(Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil$BlitPainter;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/BufferBuilder;IIIII)V"), index = 1)
-    private Matrix4f clampTooltipBackground_Transform(Matrix4f matrix4f) {
-        if (!AdaptiveTooltipConfig.INSTANCE.getConfig().scissorTooltips)
-            return matrix4f;
-
-        return this.preScrollTransform;
-    }
-
-    // Forge ModifyArgs workaround, see above
-    @ModifyArg(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;renderTooltipBackground(Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil$BlitPainter;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/BufferBuilder;IIIII)V"), index = 3)
-    private int clampTooltipBackground_X(int x) {
-        if (!AdaptiveTooltipConfig.INSTANCE.getConfig().scissorTooltips)
-            return x;
-
-        return this.edgeOffsetViewport.x;
-    }
-
-    // Forge ModifyArgs workaround, see above
-    @ModifyArg(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;renderTooltipBackground(Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil$BlitPainter;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/BufferBuilder;IIIII)V"), index = 4)
-    private int clampTooltipBackground_Y(int y) {
-        if (!AdaptiveTooltipConfig.INSTANCE.getConfig().scissorTooltips)
-            return y;
-
-        return this.edgeOffsetViewport.y;
-    }
-
-    // Forge ModifyArgs workaround, see above
-    @ModifyArg(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;renderTooltipBackground(Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil$BlitPainter;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/BufferBuilder;IIIII)V"), index = 5)
-    private int clampTooltipBackground_Width(int width) {
-        if (!AdaptiveTooltipConfig.INSTANCE.getConfig().scissorTooltips)
-            return width;
-
-        return this.edgeOffsetViewport.width;
-    }
-
-    // Forge ModifyArgs workaround, see above
-    @ModifyArg(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;renderTooltipBackground(Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil$BlitPainter;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/vertex/BufferBuilder;IIIII)V"), index = 6)
-    private int clampTooltipBackground_Height(int height) {
-        if (!AdaptiveTooltipConfig.INSTANCE.getConfig().scissorTooltips)
-            return height;
-
-        return this.edgeOffsetViewport.height;
+        return new Vector2i(SharedMixinData.tooltipData.x(), SharedMixinData.tooltipData.y());
     }
 
     @Inject(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V", shift = At.Shift.AFTER))
@@ -174,11 +120,11 @@ public class ScreenMixin {
 
         float hPercent = ScrollTracker.getHorizontalScrollNormalized();
         float vPercent = ScrollTracker.getVerticalScrollNormalized();
-        int hScrollbarHalfLength = Math.max(edgeOffsetViewport.width / 10, 10);
-        int vScrollbarHalfLength = Math.max(edgeOffsetViewport.height / 10, 10);
+        int hScrollbarHalfLength = Math.max(SharedMixinData.edgeOffsetViewport.width / 10, 10);
+        int vScrollbarHalfLength = Math.max(SharedMixinData.edgeOffsetViewport.height / 10, 10);
 
-        float x0 = edgeOffsetViewport.x + hPercent * (edgeOffsetViewport.width - hScrollbarHalfLength);
-        float y0 = edgeOffsetViewport.y + vPercent * (edgeOffsetViewport.height - vScrollbarHalfLength);
+        float x0 = SharedMixinData.edgeOffsetViewport.x + hPercent * (SharedMixinData.edgeOffsetViewport.width - hScrollbarHalfLength);
+        float y0 = SharedMixinData.edgeOffsetViewport.y + vPercent * (SharedMixinData.edgeOffsetViewport.height - vScrollbarHalfLength);
         float x1 = x0 + hScrollbarHalfLength;
         float y1 = y0 + vScrollbarHalfLength;
 
@@ -189,24 +135,24 @@ public class ScreenMixin {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
-        if (tooltipData.tooltip().width > edgeOffsetViewport.width) {
-            bufferBuilder.vertex(this.preScrollTransform, x0, edgeOffsetViewport.y + edgeOffsetViewport.height, 400).color(scrollbarColor).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, x0, edgeOffsetViewport.y + edgeOffsetViewport.height + 3, 400).color(scrollbarColor).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, x1, edgeOffsetViewport.y + edgeOffsetViewport.height + 3, 400).color(scrollbarColor).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, x1, edgeOffsetViewport.y + edgeOffsetViewport.height, 400).color(scrollbarColor).endVertex();
+        if (SharedMixinData.tooltipData.tooltip().width > SharedMixinData.edgeOffsetViewport.width) {
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, x0, SharedMixinData.edgeOffsetViewport.y + SharedMixinData.edgeOffsetViewport.height, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, x0, SharedMixinData.edgeOffsetViewport.y + SharedMixinData.edgeOffsetViewport.height + 3, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, x1, SharedMixinData.edgeOffsetViewport.y + SharedMixinData.edgeOffsetViewport.height + 3, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, x1, SharedMixinData.edgeOffsetViewport.y + SharedMixinData.edgeOffsetViewport.height, 400).color(scrollbarColor).endVertex();
         }
 
-        if (tooltipData.tooltip().height > edgeOffsetViewport.height) {
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width, y0, 400).color(scrollbarColor).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width, y1, 400).color(scrollbarColor).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 3, y1, 400).color(scrollbarColor).endVertex();
-            bufferBuilder.vertex(this.preScrollTransform, edgeOffsetViewport.x + edgeOffsetViewport.width + 3, y0, 400).color(scrollbarColor).endVertex();
+        if (SharedMixinData.tooltipData.tooltip().height > SharedMixinData.edgeOffsetViewport.height) {
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, SharedMixinData.edgeOffsetViewport.x + SharedMixinData.edgeOffsetViewport.width, y0, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, SharedMixinData.edgeOffsetViewport.x + SharedMixinData.edgeOffsetViewport.width, y1, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, SharedMixinData.edgeOffsetViewport.x + SharedMixinData.edgeOffsetViewport.width + 3, y1, 400).color(scrollbarColor).endVertex();
+            bufferBuilder.vertex(SharedMixinData.preScrollTransform, SharedMixinData.edgeOffsetViewport.x + SharedMixinData.edgeOffsetViewport.width + 3, y0, 400).color(scrollbarColor).endVertex();
         }
 
         RenderSystem.enableDepthTest();
         BufferUploader.drawWithShader(bufferBuilder.end());
 
-        GuiComponent.enableScissor(edgeOffsetViewport.x, edgeOffsetViewport.y, edgeOffsetViewport.x + edgeOffsetViewport.width, edgeOffsetViewport.y + edgeOffsetViewport.height);
+        GuiComponent.enableScissor(SharedMixinData.edgeOffsetViewport.x, SharedMixinData.edgeOffsetViewport.y, SharedMixinData.edgeOffsetViewport.x + SharedMixinData.edgeOffsetViewport.width, SharedMixinData.edgeOffsetViewport.y + SharedMixinData.edgeOffsetViewport.height);
     }
 
     @Inject(method = "renderTooltipInternal", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;popPose()V", ordinal = 0))
