@@ -21,8 +21,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class TooltipWrapper {
-    public static List<FormattedCharSequence> wrapTooltipLines(Font font, List<? extends FormattedText> lines, int x, int screenWidth, int allowedWidth) {
-        return wrapTooltipLines(font, lines, x, screenWidth, allowedWidth, DefaultTooltipPositioner.INSTANCE);
+    public static List<FormattedCharSequence> wrapTooltipLines(Font font, List<? extends FormattedText> lines, int x, int allowedWidth, int screenWidth) {
+        return wrapTooltipLines(font, lines, x, allowedWidth, screenWidth, DefaultTooltipPositioner.INSTANCE);
     }
 
     public static List<FormattedCharSequence> wrapTooltipLines(Screen screen, Font font, List<? extends FormattedText> lines, int x, ClientTooltipPositioner tooltipPositioner) {
