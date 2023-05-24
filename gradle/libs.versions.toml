@@ -22,7 +22,7 @@ fabric_api = "0.79.0+1.19.4"
 mod_menu = "6.2.1"
 
 # Forge Dependencies
-forge = "1.19.4-45.0.47"
+forge = "1.19.4-45.0.64"
 
 [libraries]
 minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
