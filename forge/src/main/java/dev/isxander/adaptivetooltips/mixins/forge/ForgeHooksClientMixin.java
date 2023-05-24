@@ -37,7 +37,7 @@ public class ForgeHooksClientMixin {
 
         List<ClientTooltipComponent> lines = capturedEvent.getTooltipElements().stream()
                 .flatMap(either -> either.map(
-                        text -> TooltipWrapper.wrapTooltipLines(font, List.of(text), mouseX, screenWidth, maxWidth).stream().map(ClientTooltipComponent::create),
+                        text -> TooltipWrapper.wrapTooltipLines(font, List.of(text), mouseX, maxWidth, screenWidth).stream().map(ClientTooltipComponent::create),
                         component -> Stream.of(ClientTooltipComponent.create(component))))
                 .toList();
 

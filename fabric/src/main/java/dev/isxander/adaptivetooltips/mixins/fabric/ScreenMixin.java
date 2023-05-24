@@ -34,7 +34,6 @@ public class ScreenMixin {
 
     @Redirect(method = "renderTooltip(Lcom/mojang/blaze3d/vertex/PoseStack;Ljava/util/List;Ljava/util/Optional;II)V", at = @At(value = "INVOKE", target = "Ljava/util/stream/Stream;map(Ljava/util/function/Function;)Ljava/util/stream/Stream;", ordinal = 0))
     private Stream<FormattedCharSequence> wrapTextListWidthData(Stream<Component> instance, Function<Component, FormattedCharSequence> function, PoseStack matrices, List<Component> lines, Optional<TooltipComponent> data, int x, int y) {
-        SharedMixinData.alreadyWrapped = true;
         return TooltipWrapper.wrapTooltipLines((Screen) (Object) this, font, instance.toList(), x, DefaultTooltipPositioner.INSTANCE).stream();
     }
 
