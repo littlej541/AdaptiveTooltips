@@ -1,0 +1,10 @@
+{
+  "package": "dev.isxander.adaptivetooltips.mixins.forge",
+  "required": true,
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "ForgeHooksClientMixin",
+    "ScreenMixin"
+  ]
+}

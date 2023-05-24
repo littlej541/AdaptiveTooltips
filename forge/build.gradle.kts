@@ -18,7 +18,7 @@ loom {
     accessWidenerPath.set(project(":common").loom.accessWidenerPath)
 
     forge {
-        mixinConfig("adaptive-tooltips.mixins.json")
+        mixinConfig("adaptive-tooltips-common.mixins.json", "adaptive-tooltips-forge.mixins.json")
 
         convertAccessWideners.set(true)
         extraAccessWideners.add(loom.accessWidenerPath.get().asFile.name)

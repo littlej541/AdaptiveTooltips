@@ -24,7 +24,8 @@
     ]
   },
   "mixins": [
-    "adaptive-tooltips.mixins.json"
+    "adaptive-tooltips-common.mixins.json",
+    "adaptive-tooltips-fabric.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.14.19",
