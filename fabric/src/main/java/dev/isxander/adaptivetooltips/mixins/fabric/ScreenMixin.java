@@ -1,7 +1,6 @@
 package dev.isxander.adaptivetooltips.mixins.fabric;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.isxander.adaptivetooltips.config.AdaptiveTooltipConfig;
 import dev.isxander.adaptivetooltips.helpers.TooltipWrapper;
 import dev.isxander.adaptivetooltips.utils.GuiUtil;
 import dev.isxander.adaptivetooltips.utils.SharedMixinData;
